@@ -1,0 +1,1 @@
+<!-- If an exception's arguments are present, the first argument as the error message MUST BE in UPPERCASE or EMPTY STRING. Otherwise, default values for the current exception are applied. -->

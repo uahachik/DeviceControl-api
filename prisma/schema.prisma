@@ -1,0 +1,45 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int              @id @default(autoincrement())
+  email      String           @unique
+  password   String
+  firstName  String
+  lastName   String
+  profile    String?
+  createdAt  DateTime         @default(now())
+  lastActive DateTime?        @updatedAt
+  devices    UsersToDevices[]
+  Device     Device[]
+}
+
+model Device {
+  id             Int              @id @default(autoincrement())
+  dsn            String           @unique
+  type           String
+  capacity       String
+  content        String?
+  battery        Int?
+  firstUser      User             @relation(fields: [firstUserId], references: [id], onDelete: Cascade)
+  firstUserId    Int
+  commissionedAt DateTime         @default(now())
+  lastActive     DateTime         @updatedAt
+  users          UsersToDevices[]
+}
+
+model UsersToDevices {
+  user     User   @relation(fields: [userId], references: [id])
+  userId   Int
+  device   Device @relation(fields: [deviceId], references: [id])
+  deviceId Int
+
+  @@id([userId, deviceId])
+}

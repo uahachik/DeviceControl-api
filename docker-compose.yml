@@ -1,0 +1,40 @@
+version: "3"
+services:
+  api:
+    container_name: fastify-typescript
+    ports:
+      - 5000:5000
+    build:
+      dockerfile: Dockerfile
+      context: .
+    env_file:
+      - .env
+    # environment:
+    #   - NODE_ENV=production
+    volumes:
+      - ./node_modules:/app/node_modules
+      - ./:/app
+    depends_on:
+      - db
+    networks:
+      - backend
+    command: >
+      sh -c "npx prisma generate && npm run dev"
+  db:
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=master123
+    ports:
+      - 5432:5432
+    volumes:
+      - db:/var/lib/postgresql/data
+    networks:
+      - backend
+networks:
+  backend:
+    driver: bridge
+volumes:
+  db:
+    driver: local

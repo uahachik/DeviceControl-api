@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Configuration Schema",
+  "type": "object",
+  "properties": {
+    "logger": {
+      "type": "object",
+      "properties": {
+        "useLogger": {
+          "type": "string",
+          "description": "Specify the default logging mechanism to use.",
+          "enum": [
+            "in-build",
+            "dev-friendly",
+            "both",
+            "only-in-build-for-prod-dev-friendly-for-dev"
+          ],
+          "default": "only-in-build-for-prod-dev-friendly-for-dev"
+        }
+      },
+      "required": [
+        "useLogger"
+      ]
+    }
+  }
+}

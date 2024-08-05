@@ -1,0 +1,10 @@
+{
+  "$schema": "./logger.config.schema.json",
+  "logger": {
+    "useLogger": "dev-friendly",
+    "testObj": {
+      "childTestFirst": "first",
+      "childTestSecond": "undefined"
+    }
+  }
+}
