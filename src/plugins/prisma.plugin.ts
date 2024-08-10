@@ -29,7 +29,7 @@ const prismaPlugin = async (fastify: FastifyInstance) => {
    */
   fastify.addHook('onClose', async (instance) => {
     await instance.prisma.$disconnect();
-    fastify.log.info("Prisma has been disconnected");
+    fastify.log.info('Prisma has been disconnected');
   });
 };
 
