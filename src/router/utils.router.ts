@@ -6,11 +6,11 @@ export default async function utilsRouter(fastify: FastifyInstance) {
   const prisma = new PrismaClient();
   const { guarded } = fastify;
 
-  fastify.get('/health-check', (_, reply) => {
+  fastify.get('/health-check', (_req, reply) => {
     return reply.send({ message: 'Success' });
   });
 
-  fastify.get('/db-triggers', { preHandler: [guarded] }, async (_, reply) => {
+  fastify.get('/db-triggers', { preHandler: [guarded] }, async (_req, reply) => {
     try {
       const triggers = await listTriggers(prisma);
       return reply.send(triggers);
@@ -19,7 +19,7 @@ export default async function utilsRouter(fastify: FastifyInstance) {
     }
   });
 
-  fastify.get('/db-functions', { preHandler: [guarded] }, async (_, reply) => {
+  fastify.get('/db-functions', { preHandler: [guarded] }, async (_req, reply) => {
     try {
       const triggers = await listFunctions(prisma);
       return reply.send(triggers);
@@ -28,7 +28,7 @@ export default async function utilsRouter(fastify: FastifyInstance) {
     }
   });
 
-  fastify.get('/not-implemented', async (_, reply) => {
+  fastify.get('/not-implemented', async (_req, reply) => {
     try {
       /*
        * Example of throwing the error

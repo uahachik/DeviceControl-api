@@ -1,6 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 
-export const createDelivery = async (_: FastifyRequest, reply: FastifyReply) => {
+export const createDelivery = async (_req: FastifyRequest, reply: FastifyReply) => {
   try {
     return reply.send({ message: 'Hello, Delivery' });
   } catch (error) {
@@ -9,7 +9,7 @@ export const createDelivery = async (_: FastifyRequest, reply: FastifyReply) => 
 };
 
 
-export const deleteDelivery = async (_: FastifyRequest, reply: FastifyReply) => {
+export const deleteDelivery = async (_req: FastifyRequest, reply: FastifyReply) => {
   try {
     return reply.send({ message: 'Delivery deleted' });
   } catch (error) {

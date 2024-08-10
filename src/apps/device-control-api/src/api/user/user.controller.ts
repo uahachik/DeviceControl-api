@@ -35,16 +35,19 @@ export const signup = async (request: FastifyRequest<IUser>, reply: FastifyReply
 export const login = async (request: FastifyRequest<IUser>, reply: FastifyReply) => {
   try {
     const { email, password } = request.body;
-    const user = await request.prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      return reply.exceptions.notFound('USER LOGIN NOT FOUND ERROR', { cause: 'User not found' });
+    const existingUser = await request.prisma.user.findUnique({ where: { email } });
+    if (!existingUser) {
+      return reply.exceptions.unauthorized('USER LOGIN AUTHENTICATION ERROR', { cause: 'Invalid credentials' });
     }
-
-    const checkPass = await validatePassword(password, user.password);
-    if (!checkPass) {
+    const checkPass = await validatePassword(password, existingUser.password);
+    if (!existingUser || !checkPass) {
       return reply.exceptions.unauthorized('USER LOGIN AUTHENTICATION ERROR', { cause: 'Invalid credentials' });
     }
 
+    const user = await request.prisma.user.update({
+      where: { email },
+      data: { lastActive: new Date() },
+    });
     Reflect.deleteProperty(user, 'password');
 
     return reply.status(201).send({ user });
@@ -53,7 +56,7 @@ export const login = async (request: FastifyRequest<IUser>, reply: FastifyReply)
   }
 };
 
-export const logout = async (_: FastifyRequest, reply: FastifyReply) => {
+export const logout = async (_req: FastifyRequest, reply: FastifyReply) => {
   try {
     return reply.status(204).send();
   } catch (error) {

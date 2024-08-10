@@ -53,7 +53,7 @@ export const login = async (request: FastifyRequest<IUser>, reply: FastifyReply)
   }
 };
 
-export const logout = async (_: FastifyRequest, reply: FastifyReply) => {
+export const logout = async (_req: FastifyRequest, reply: FastifyReply) => {
   try {
     return reply.status(204).send();
   } catch (error) {

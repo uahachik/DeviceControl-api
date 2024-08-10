@@ -57,7 +57,7 @@ export function createUserController(fastify: FastifyInstance) {
     };
 
     @Guarded(fastify)
-    async logout(_: FastifyRequest, reply: FastifyReply) {
+    async logout(_req: FastifyRequest, reply: FastifyReply) {
       try {
         return reply.status(204).send();
       } catch (error) {

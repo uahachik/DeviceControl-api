@@ -2,7 +2,7 @@
 // import { InternalServerError } from '../libs/errors-handler/errors';
 
 // async function replyStatusCode(fastify: FastifyInstance) {
-//   fastify.addHook('onSend', async (_: FastifyRequest, reply: FastifyReply, payload: string) => {
+//   fastify.addHook('onSend', async (_req: FastifyRequest, reply: FastifyReply, payload: string) => {
 //     try {
 //       if (payload) {
 //         const deserialized = JSON.parse(payload);

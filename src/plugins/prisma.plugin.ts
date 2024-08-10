@@ -19,7 +19,7 @@ const prismaPlugin = async (fastify: FastifyInstance) => {
   /*
    ** Attaching Prisma client to requests
    */
-  fastify.addHook('onRequest', (request, _, done) => {
+  fastify.addHook('onRequest', (request, _reply, done) => {
     request.prisma = prisma;
     done();
   });
