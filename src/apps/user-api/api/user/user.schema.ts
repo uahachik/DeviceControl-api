@@ -1,5 +1,15 @@
 [{
   tags: ['user'],
+  description: 'User token',
+  method: 'post',
+  path: '/api/user/token',
+  guarded: true,
+  controller: 'token',
+  response: {
+    201: { $ref: 'userResponseSchema#', },
+  }
+}, {
+  tags: ['user'],
   description: 'Register user',
   method: 'post',
   path: '/api/user/signup',
