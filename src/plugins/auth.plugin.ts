@@ -4,9 +4,10 @@ import fcookie from '@fastify/cookie';
 import fp from 'fastify-plugin';
 import { deleteUserUrl, loginUrl, logoutUrl, signupUrl } from "../router/url-schema";
 
-const DEFAULT_TIME_TO_LIVE_IN_MILLISECONDS = 12 * 60 * 60 * 1000;
+const REFRESH_COOKIE_EXPIRATION_IN_MILLISECONDS = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+const CACHE_DEFAULT_TIME_TO_LIVE_IN_MILLISECONDS = 12 * 60 * 60 * 1000;
 
-function cacheUserId(ttl: number = DEFAULT_TIME_TO_LIVE_IN_MILLISECONDS) {
+function cacheUserId(ttl: number = CACHE_DEFAULT_TIME_TO_LIVE_IN_MILLISECONDS) {
   const cache = new Map<number, number>();
   return ({
     add(id: number) {
@@ -42,6 +43,8 @@ function generateCookie(reply: FastifyReply, token: string) {
   return reply
     .setCookie('session_token', token, {
       path: '/',
+      expires: REFRESH_COOKIE_EXPIRATION_IN_MILLISECONDS,
+      // expires: new Date(Date.now() + 20 * 1000),
       secure: true,
       httpOnly: true,
       sameSite: 'strict',
@@ -52,20 +55,26 @@ function generateCookie(reply: FastifyReply, token: string) {
 const authPlugin = async (fastify: FastifyInstance) => {
   const cachedId = cacheUserId();
 
-  const APP_JWT_SECRET = process.env.APP_JWT_SECRET;
-  if (!APP_JWT_SECRET) {
-    throw new Error("APP_JWT_SECRET environment variable is not defined");
+  const SESSION_TOKEN_SECRET = process.env.SESSION_TOKEN_SECRET;
+  if (!SESSION_TOKEN_SECRET) {
+    throw new Error("SESSION_TOKEN_SECRET environment variable is not defined");
   }
 
   fastify.register(fastifyJwt, {
-    secret: APP_JWT_SECRET,
+    secret: SESSION_TOKEN_SECRET,
+    sign: {
+      expiresIn: '7d',
+      // expiresIn: '20s',
+    },
     cookie: {
       cookieName: 'session_token',
-      signed: true
+      // JWT stored in the cookie will be signed with the value of the property "secret" of these options
+      signed: true,
     },
   });
 
   fastify.register(fcookie, {
+    // "secret: ['sign-key', 'rotated-key']" is used to sign the cookie when "signed: true" is specified in reply.setCookie
     // to rotate secret's keys: secret.shift().push('random-string') then redeploy the server
     // do this no more often than a cookie is valid
     // https://github.com/fastify/fastify-cookie#rotating-signing-secret
@@ -79,7 +88,7 @@ const authPlugin = async (fastify: FastifyInstance) => {
   fastify.addHook('onSend', async (request, reply, payload: string) => {
     try {
       const { url } = request.routeOptions;
-      if ((url === signupUrl || url === loginUrl)) {
+      if (url === signupUrl || url === loginUrl) {
         const { user } = await JSON.parse(payload);
         if (user) {
           const token = fastify.jwt.sign({ id: user.id });
@@ -99,7 +108,7 @@ const authPlugin = async (fastify: FastifyInstance) => {
     try {
       const cookie = request.cookies.session_token;
       if (!cookie) {
-        return reply.exceptions.unauthorized({ cause: 'Missing token in cookies' });
+        return reply.exceptions.unauthorized({ cause: 'You are not authorized' });
       }
 
       const cookieUnsignResult = request.unsignCookie(cookie);
@@ -108,7 +117,21 @@ const authPlugin = async (fastify: FastifyInstance) => {
       }
       const { id } = fastify.jwt.verify<{ id: number, iat: number; }>(cookieUnsignResult.value);
 
-      if (cachedId.isNotCached(id)) {
+      //                                        ########### USER ACCESS MANAGEMENT ###########
+      const { granted } = request.routeOptions.config;
+      if (granted && granted !== 'user') {
+        console.log(`detected permission ${granted} for ID ${id}`);
+        const user = await request.prisma.user.findUnique({ where: { id } });
+        //@ts-ignore
+        user.granted = ['user', 'admin', 'root', 'owner'];
+        //@ts-ignore
+        if (user && granted !== user.granted[2]) {
+          return reply.exceptions.forbidden();
+        }
+      }
+      //                                                     #################
+
+      if (!granted || granted === 'user' && cachedId.isNotCached(id)) {
         const user = await request.prisma.user.findUnique({ where: { id } });
         if (!user) {
           // if a user is not found at this point, then it is either a malicious person/attacker
@@ -129,7 +152,7 @@ const authPlugin = async (fastify: FastifyInstance) => {
   });
 
   /**
-   * Cleaning a cookie with a token on logout or user deletion
+   * Cleaning a cookie and a token on user logout or user deletion
    */
   fastify.addHook('onSend', async (request: FastifyRequest, reply: FastifyReply) => {
     if (request.routeOptions.url === logoutUrl || request.routeOptions.url === deleteUserUrl) {

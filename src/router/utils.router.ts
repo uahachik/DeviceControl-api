@@ -28,7 +28,7 @@ export default async function utilsRouter(fastify: FastifyInstance) {
     }
   });
 
-  fastify.get('/not-implemented', async (_req, reply) => {
+  fastify.get('/not-implemented', { preHandler: [guarded] }, async (_req, reply) => {
     try {
       /*
        * Example of throwing the error
@@ -42,6 +42,16 @@ export default async function utilsRouter(fastify: FastifyInstance) {
       // (error as ErrorReplyLogger).status = 500;
       // (error as ErrorReplyLogger).message = 'NOT IMPLEMENTED';
       return reply.exceptions.internalServerError(error, 501, 'This endpoint is not implemented');
+    }
+  });
+
+  fastify.get('/admin', {
+    preHandler: [guarded], config: { granted: 'admin' }
+  }, async (_req, reply) => {
+    try {
+      reply.status(204).send();
+    } catch (error) {
+      return reply.exceptions.internalServerError(error);
     }
   });
 }

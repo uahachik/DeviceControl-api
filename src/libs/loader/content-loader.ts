@@ -12,6 +12,7 @@ interface Schema {
   method: HTTPMethods;
   path: string;
   guarded: boolean;
+  granted: string;
   controller: ControllerFunction;
   body?: unknown;
   response: Response;
@@ -35,11 +36,12 @@ function isValidResponse(response: Response): boolean {
 
 function isValidSchema(schema: Schema): schema is Schema {
   return (
-    Array.isArray(schema.tags) &&
-    schema.tags.every((tag: string) => typeof tag === 'string') &&
+    Array.isArray(schema.tags) && schema.tags.every((tag: string) => typeof tag === 'string') &&
     typeof schema.description === 'string' &&
     typeof schema.method === 'string' &&
     typeof schema.path === 'string' &&
+    !schema.guarded || typeof schema.guarded === 'boolean' &&
+    !schema.granted || typeof schema.granted === 'string' &&
     typeof schema.controller === 'function' &&
     typeof schema.response === 'object' &&
     isValidResponse(schema.response)

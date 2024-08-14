@@ -25,10 +25,11 @@ async function generateRouter(
     const { schemas, counted } = await contentLoader(schemaFilePath, performer);
     for (let idx = 0; idx < schemas.length; idx++) {
       const schema = schemas[idx];
-      const { method, path, guarded, controller } = schema;
-      const preHandler = guarded ? [fastify.guarded] : [];
+      const { method, path, guarded, granted, controller } = schema;
+      const preHandler = guarded ? [fastify.guarded] : undefined;
+      const config = granted ? { granted } : undefined;
       if (isExtendedHTTPMethod(method)) {
-        (fastify as ExtendedFastifyInstance)[method](path, { preHandler, schema }, controller);
+        (fastify as ExtendedFastifyInstance)[method](path, { preHandler, config, schema }, controller);
       }
     }
     return counted;

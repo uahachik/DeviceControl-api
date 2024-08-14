@@ -1,15 +1,5 @@
 [{
   tags: ['user'],
-  description: 'User token',
-  method: 'post',
-  path: '/api/user/token',
-  guarded: true,
-  controller: 'token',
-  response: {
-    201: { $ref: 'userResponseSchema#', },
-  }
-}, {
-  tags: ['user'],
   description: 'Register user',
   method: 'post',
   path: '/api/user/signup',
@@ -55,10 +45,22 @@
   }
 }, {
   tags: ['user'],
+  description: 'Get current user',
+  method: 'post',
+  path: '/api/user/me',
+  guarded: true,
+  granted: 'user',
+  controller: 'currentUser',
+  response: {
+    201: { $ref: 'userResponseSchema#', },
+  }
+}, {
+  tags: ['user'],
   description: 'Update User by ID',
   method: 'put',
   path: '/api/user/:userId',
   guarded: true,
+  granted: 'admin',
   controller: 'updateUser',
   response: {
     201: { $ref: 'userResponseSchema#' },
@@ -72,6 +74,7 @@
   method: 'get',
   path: '/api/users',
   guarded: true,
+  granted: 'root',
   controller: 'getUsers',
   response: {
     // 201: { $ref: 'allUsersResponseSchema#' },

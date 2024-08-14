@@ -43,4 +43,8 @@ declare module 'fastify' {
   interface FastifyRouteOptions {
     schema?: FastifySchema;
   }
+  interface FastifyContextConfig {
+    granted?: string;
+  }
 }
+
