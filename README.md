@@ -106,13 +106,14 @@ Example Use Cases
     The server verifies the token and extracts user data to authorize the request.
 
 
-# what next
-  - tools license cost
-  - production planning
-  - team and positions
-  - database schema
-  - scaffold and contracts
-  - layers and components
+# token and cookie
+   Cookie signing uses the secret from fastify-cookie (e.g., ['sign-key', 'rotated-key']) when setting the cookie with "signed: true".
+   JWT signing uses the secret from fastify-jwt (e.g., SESSION_TOKEN_SECRET) to sign the JWT itself, which may be stored in a cookie. The signed: true in the cookie option of fastifyJwt refers to the JWT signature, not the cookie's signature.
+
+  These are two different signing mechanisms, each serving a different purpose:
+    Cookie signing ensures that the cookie's value hasn't been tampered with.
+    JWT signing ensures that the token's contents are secure and have not been altered.
+
 
 ### start application in dev mode
 `docker-compose up`
