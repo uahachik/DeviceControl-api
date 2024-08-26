@@ -75,7 +75,7 @@ export const getDevices = async (request: FastifyRequest, reply: FastifyReply) =
       }
     });
 
-    return reply.status(201).send(devicesWithUserIds);
+    return reply.send(devicesWithUserIds);
   } catch (error) {
     return reply.exceptions.internalServerError(error, 'Server error occurred when getting devices with the ID of the users');
   }

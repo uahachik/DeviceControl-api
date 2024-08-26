@@ -3,21 +3,6 @@ import { hashPassword, validatePassword } from '../../../../libs/crypto';
 import { prismaExclude } from '../../../../libs/prisma-exclude';
 import { IUser } from '../../../../types';
 
-export const token = async (request: FastifyRequest, reply: FastifyReply) => {
-  try {
-    const user = await request.prisma.user.findUnique({ where: { id: request.currentUserId } });
-    if (!user) {
-      return reply.exceptions.notFound({ cause: 'User not found' });
-    }
-    Reflect.deleteProperty(user, 'password');
-
-    return reply.status(201).send({ user });
-  } catch (error) {
-    return reply.exceptions.internalServerError(error, 'Server error occurred when registering a user');
-
-  }
-};
-
 export const signup = async (request: FastifyRequest<IUser>, reply: FastifyReply) => {
   try {
     const { email, password, firstName, lastName, profile } = request.body;
@@ -76,6 +61,21 @@ export const logout = async (_req: FastifyRequest, reply: FastifyReply) => {
     return reply.status(204).send();
   } catch (error) {
     return reply.exceptions.internalServerError(error);
+  }
+};
+
+export const currentUser = async (request: FastifyRequest, reply: FastifyReply) => {
+  try {
+    const user = await request.prisma.user.findUnique({ where: { id: request.currentUserId } });
+    if (!user) {
+      return reply.exceptions.notFound({ cause: 'User not found' });
+    }
+    Reflect.deleteProperty(user, 'password');
+
+    return reply.status(201).send({ user });
+  } catch (error) {
+    return reply.exceptions.internalServerError(error, 'Server error occurred when registering a user');
+
   }
 };
 
@@ -177,7 +177,7 @@ export const deleteUser = async (request: FastifyRequest, reply: FastifyReply) =
       }
     });
 
-    return reply.send({ message: `User with ID '${id}' and associated devices deleted successfully` });
+    return reply.send({ message: `User with ID '${id}' and associated devices were successfully deleted` });
   } catch (error) {
     return reply.exceptions.internalServerError(error, 'Server error occurred when deleting a user');
   }

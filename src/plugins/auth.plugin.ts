@@ -3,59 +3,16 @@ import fastifyJwt from '@fastify/jwt';
 import fcookie from '@fastify/cookie';
 import fp from 'fastify-plugin';
 import { deleteUserUrl, loginUrl, logoutUrl, signupUrl } from "../router/url-schema";
+import { SECRET_KEYS } from '../libs/iam/identity/constants';
+import generateCookie from '../libs/iam/identity/generate-cookie';
+import { handledCookie } from '../libs/iam/identity/handle-cookie';
+import cacheUserId from '../libs/iam/identity/cache-user';
 
-const REFRESH_COOKIE_EXPIRATION_IN_MILLISECONDS = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-const CACHE_DEFAULT_TIME_TO_LIVE_IN_MILLISECONDS = 12 * 60 * 60 * 1000;
-
-function cacheUserId(ttl: number = CACHE_DEFAULT_TIME_TO_LIVE_IN_MILLISECONDS) {
-  const cache = new Map<number, number>();
-  return ({
-    add(id: number) {
-      // console.log('cache added');
-      const expiry = Date.now() + ttl;
-      cache.set(id, expiry);
-      this.cleanup();
-    },
-    isNotCached(id: number) {
-      const expiry = cache.get(id);
-      // console.log('is not cached:', !(!!expiry) || expiry! < Date.now());
-      return !(!!expiry) || expiry! < Date.now();
-    },
-    remove(id: number) {
-      // console.log('cache removed');
-      cache.delete(id);
-    },
-    cleanup() {
-      // console.log('cache cleaned up');
-      for (const entry of cache) {
-        if (entry[1] < Date.now()) {
-          cache.delete(entry[0]);
-        }
-      }
-    },
-    sweepout() {
-      cache.clear();
-    },
-  });
-}
-
-function generateCookie(reply: FastifyReply, token: string) {
-  return reply
-    .setCookie('session_token', token, {
-      path: '/',
-      expires: REFRESH_COOKIE_EXPIRATION_IN_MILLISECONDS,
-      // expires: new Date(Date.now() + 20 * 1000),
-      secure: true,
-      httpOnly: true,
-      sameSite: 'strict',
-      signed: true,
-    });
-};
+const SESSION_TOKEN_SECRET = process.env.SESSION_TOKEN_SECRET;
 
 const authPlugin = async (fastify: FastifyInstance) => {
   const cachedId = cacheUserId();
 
-  const SESSION_TOKEN_SECRET = process.env.SESSION_TOKEN_SECRET;
   if (!SESSION_TOKEN_SECRET) {
     throw new Error("SESSION_TOKEN_SECRET environment variable is not defined");
   }
@@ -75,10 +32,9 @@ const authPlugin = async (fastify: FastifyInstance) => {
 
   fastify.register(fcookie, {
     // "secret: ['sign-key', 'rotated-key']" is used to sign the cookie when "signed: true" is specified in reply.setCookie
-    // to rotate secret's keys: secret.shift().push('random-string') then redeploy the server
-    // do this no more often than a cookie is valid
+    // to rotate secret's keys: SECRET_KEYS.shift().push('random-string') then redeploy the server
     // https://github.com/fastify/fastify-cookie#rotating-signing-secret
-    secret: ['sign-key', 'rotated-key'],
+    secret: SECRET_KEYS,
     hook: 'preHandler',
   });
 
@@ -92,6 +48,7 @@ const authPlugin = async (fastify: FastifyInstance) => {
         const { user } = await JSON.parse(payload);
         if (user) {
           const token = fastify.jwt.sign({ id: user.id });
+          // const token = JSON.stringify({ id: user.id });
           generateCookie(reply, token);
           cachedId.add(user.id);
         }
@@ -107,8 +64,9 @@ const authPlugin = async (fastify: FastifyInstance) => {
   fastify.decorate('guarded', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const cookie = request.cookies.session_token;
+
       if (!cookie) {
-        return reply.exceptions.unauthorized({ cause: 'You are not authorized' });
+        return reply.exceptions.unauthorized({ cause: 'You are not authenticated' });
       }
 
       const cookieUnsignResult = request.unsignCookie(cookie);
@@ -117,8 +75,29 @@ const authPlugin = async (fastify: FastifyInstance) => {
       }
       const { id } = fastify.jwt.verify<{ id: number, iat: number; }>(cookieUnsignResult.value);
 
-      //                                        ########### USER ACCESS MANAGEMENT ###########
+      if (cookieUnsignResult.renew) {
+        handledCookie.cookieSignatureHandler(id, cookie);
+        if (handledCookie.maliciousCookieUsage) {
+          reply.exceptions.unauthorized(
+            'Unauthorized access attempt detected',
+            { cause: `Possible stolen cookie usage detected. IP: ${request.ip}, User ID: ${id}` }
+          );
+        }
+      }
+
       const { granted } = request.routeOptions.config;
+
+      if ((!granted || granted === 'user') && cachedId.isNotCached(id)) {
+        const user = await request.prisma.user.findUnique({ where: { id } });
+        if (!user) {
+          // if a user is not found at this point, then it is either a malicious person/attacker
+          // or most probably an account deleted
+          return reply.exceptions.badRequest({ cause: 'Server cannot process the request' });
+        }
+        cachedId.add(id);
+      }
+
+      //                                        ########### USER ACCESS MANAGEMENT ###########
       if (granted && granted !== 'user') {
         console.log(`detected permission ${granted} for ID ${id}`);
         const user = await request.prisma.user.findUnique({ where: { id } });
@@ -131,19 +110,10 @@ const authPlugin = async (fastify: FastifyInstance) => {
       }
       //                                                     #################
 
-      if (!granted || granted === 'user' && cachedId.isNotCached(id)) {
-        const user = await request.prisma.user.findUnique({ where: { id } });
-        if (!user) {
-          // if a user is not found at this point, then it is either a malicious person/attacker
-          // or most probably an account deleted
-          return reply.exceptions.badRequest({ cause: 'Server cannot process the request' });
-        }
-        cachedId.add(id);
-      }
       request.currentUserId = id;
 
-      if (cookieUnsignResult.renew) {
-        // if "renew" set the same cookie again, this time plugin will sign it with a new key
+      if (cookieUnsignResult.renew && !handledCookie.maliciousCookieUsage) {
+        // if true set for “renew”, the plugin will sign the same cookie again with a new key
         generateCookie(reply, cookieUnsignResult.value);
       }
     } catch (error) {
